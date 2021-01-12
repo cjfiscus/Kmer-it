@@ -1,0 +1,23 @@
+rule build_organellar_genome_db:
+    """
+    Download and format Organellar Genomes from NCBI Organelle Genome Resources
+    """
+    output:
+        "resources/org_genomes.fa", 
+        expand("resources/org_genomes.fa.{ext}", ext=["ann", "bwt", "pac", "sa"])
+    shell:
+        """
+        # dl refseq from ncbi
+        wget -nd -np -r -A 'mitochondrion.*.*.genomic.fna.gz' ftp://ftp.ncbi.nlm.nih.gov/refseq/release/mitochondrion/
+        wget -nd -np -r -A 'plastid.*.*.genomic.fna.gz' ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plastid/
+
+        # combine files
+        zcat < mitochondrion*.fna.gz plastid*.fna.gz > resources/org_genomes.fa
+
+        # index with bwa
+        bwa index resources/org_genomes.fa 
+        
+        # cleanup 
+        rm mitochondrion*.genomic.fna.gz
+        rm plastid*.genomic.fna.gz       
+        """
