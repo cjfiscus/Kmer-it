@@ -1,0 +1,7 @@
+# Kmer-it config
+
+## trimming options
+trimming:
+    enable: true
+    adapter_file: ""
+    trimmomatic: "ILLUMINACLIP:$adapter_file:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:20 MINLEN:36"

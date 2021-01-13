@@ -1,0 +1,3 @@
+unique_id	sample_name	sra/custom	fq1	fq2
+1	CYR	SRR1945435	NA	NA	
+2	LDV-18	NA	resources/SRR1945436_1.fastq.gz	resources/SRR1945436_2.fastq.gz

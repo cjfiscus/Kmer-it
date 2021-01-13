@@ -1,3 +1,8 @@
+from snakemake.utils import min_version
+min_version("5.3.0")
+
+configfile: "config/config.yaml"
+
 rule build_organellar_genome_db:
     """
     Download and format Organellar Genomes from NCBI Organelle Genome Resources
@@ -12,12 +17,38 @@ rule build_organellar_genome_db:
         wget -nd -np -r -A 'plastid.*.*.genomic.fna.gz' ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plastid/
 
         # combine files
-        zcat < mitochondrion*.fna.gz plastid*.fna.gz > resources/org_genomes.fa
+        gunzip -c *.fna.gz > resources/org_genomes.fa        
 
         # index with bwa
         bwa index resources/org_genomes.fa 
         
         # cleanup 
-        rm mitochondrion*.genomic.fna.gz
-        rm plastid*.genomic.fna.gz       
+        rm mitochondrion.*.*.genomic.fna.gz
+        rm plastid.*.*.genomic.fna.gz       
         """
+
+rule trim_reads_pe:
+    """
+    trim adapters and low quality sequence with trimmomatic for pe runs
+    """
+    input:
+        "{unique_id}_1.fq.gz",
+        "{unique_id}_2.fq.gz"
+    output: 
+        "{unique_id}_1_trimmed.fq.gz",
+        "{unique_id}_1_trimmed_unpaired.fq.gz",
+        "{unique_id}_2_trimmed.fq.gz",
+        "{unique_id}_2_trimmed_unpaired.fq.gz"
+    params:
+        trim_params = config["trimming"]["trimmomatic"]
+    shell:
+        """
+        trimmomatic PE {input[0]} {input[1]} \
+        {output[0]} {output[1]} \
+        {output[2]} {output[3]} \
+        ILLUMINACLIP:{FILE}:2:30:10 
+        """
+
+#rule trim_reads_se:
+#    """
+#    trim adapters and low quality sequence with trimmomatic for se runs
