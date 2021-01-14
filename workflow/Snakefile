@@ -1,7 +1,15 @@
+import pandas as pd
 from snakemake.utils import min_version
 min_version("5.3.0")
 
 configfile: "config/config.yaml"
+samples = pd.read_table("config/samples.tsv").set_index("id", drop=False)
+all_ids=list(samples["id"])
+
+rule all:
+    input:
+        expand("{id}_1.fq.gz", id=all_ids),
+        expand("{id}_2.fq.gz", id=all_ids)
 
 rule build_organellar_genome_db:
     """
@@ -27,28 +35,44 @@ rule build_organellar_genome_db:
         rm plastid.*.*.genomic.fna.gz       
         """
 
-rule trim_reads_pe:
+rule link_fastq:
     """
-    trim adapters and low quality sequence with trimmomatic for pe runs
+    create symlink to file
     """
     input:
-        "{unique_id}_1.fq.gz",
-        "{unique_id}_2.fq.gz"
-    output: 
-        "{unique_id}_1_trimmed.fq.gz",
-        "{unique_id}_1_trimmed_unpaired.fq.gz",
-        "{unique_id}_2_trimmed.fq.gz",
-        "{unique_id}_2_trimmed_unpaired.fq.gz"
-    params:
-        trim_params = config["trimming"]["trimmomatic"]
+        fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
+        fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"]
+    output:
+        "{id}_1.fq.gz",
+        "{id}_2.fq.gz"
     shell:
         """
-        trimmomatic PE {input[0]} {input[1]} \
-        {output[0]} {output[1]} \
-        {output[2]} {output[3]} \
-        ILLUMINACLIP:{FILE}:2:30:10 
+        cp {input.fq1} {output[0]}
+        cp {input.fq2} {output[1]}
         """
-
-#rule trim_reads_se:
+        
+#rule trim_reads_pe:
 #    """
-#    trim adapters and low quality sequence with trimmomatic for se runs
+#    trim adapters and low quality sequence with trimmomatic for pe runs
+#    """
+#    input:
+#        "{id}_1.fq.gz",
+#        "{id}_2.fq.gz"
+
+#    output:
+#        "test.txt"
+#        "{unique_id}_2.fq.gz"
+ 
+#        "{unique_id}_1_trimmed.fq.gz",
+#        "{unique_id}_1_trimmed_unpaired.fq.gz",
+#        "{unique_id}_2_trimmed.fq.gz",
+#        "{unique_id}_2_trimmed_unpaired.fq.gz"
+#    params:
+#        trim_params = config["trimming"]["trimmomatic_pe"]
+#    shell:
+#        """
+#        trimmomatic PE {input[0]} {input[1]} \
+#        {output[0]} {output[1]} \
+#        {output[2]} {output[3]} \
+#        ILLUMINACLIP:{FILE}:2:30:10 
+#        """

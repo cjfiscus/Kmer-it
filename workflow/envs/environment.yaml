@@ -7,6 +7,7 @@ dependencies:
 - bwa=0.7.17
 - coreutils=8.25
 - jellyfish=2.2.10
+- pandas=1.2.0
 - samtools=1.11
 - snakemake-minimal=5.31.1
 - sra-tools=2.10.1
