@@ -7,3 +7,5 @@ trimming:
     enable: true
     trimmomatic_pe: "ILLUMINACLIP:resources/PE_all.fa:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:20 MINLEN:36"
     trimmomatic_se: "ILLUMINACLIP:resources/SE_all.fa:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:20 MINLEN:36"
+
+k: 12

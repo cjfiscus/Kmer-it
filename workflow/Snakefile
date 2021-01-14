@@ -8,8 +8,7 @@ all_ids=list(samples["id"])
 
 rule all:
     input:
-        expand("{id}_1.fq.gz", id=all_ids),
-        expand("{id}_2.fq.gz", id=all_ids)
+        expand("results/counts/{id}.txt.gz", id=all_ids)
 
 rule build_organellar_genome_db:
     """
@@ -35,44 +34,104 @@ rule build_organellar_genome_db:
         rm plastid.*.*.genomic.fna.gz       
         """
 
+# re-write following rule to create symlink, this is only for testing
 rule link_fastq:
     """
-    create symlink to file
+    copy file to resources
     """
     input:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
         fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"]
     output:
-        "{id}_1.fq.gz",
-        "{id}_2.fq.gz"
+        "resources/fq/{id}_1.fq.gz",
+        "resources/fq/{id}_2.fq.gz"
     shell:
         """
         cp {input.fq1} {output[0]}
         cp {input.fq2} {output[1]}
         """
         
-#rule trim_reads_pe:
-#    """
-#    trim adapters and low quality sequence with trimmomatic for pe runs
-#    """
-#    input:
-#        "{id}_1.fq.gz",
-#        "{id}_2.fq.gz"
+rule trim_reads_pe:
+    """
+    trim adapters and low quality sequence with trimmomatic for pe runs
+    """
+    input:
+        "resources/fq/{id}_1.fq.gz",
+        "resources/fq/{id}_2.fq.gz"
+    output:
+        "results/trimmed/{id}_1_trimmed.fq.gz",
+        "results/trimmed/{id}_1_trimmed_unpaired.fq.gz",
+        "results/trimmed/{id}_2_trimmed.fq.gz",
+        "results/trimmed/{id}_2_trimmed_unpaired.fq.gz"
+    params:
+        trim_params = config["trimming"]["trimmomatic_pe"]
+    threads: 3
+    shell:
+        """
+        trimmomatic PE -threads {threads} \
+        {input[0]} {input[1]} \
+        {output[0]} {output[1]} \
+        {output[2]} {output[3]} \
+        {params.trim_params}
+        """
 
-#    output:
-#        "test.txt"
-#        "{unique_id}_2.fq.gz"
- 
-#        "{unique_id}_1_trimmed.fq.gz",
-#        "{unique_id}_1_trimmed_unpaired.fq.gz",
-#        "{unique_id}_2_trimmed.fq.gz",
-#        "{unique_id}_2_trimmed_unpaired.fq.gz"
-#    params:
-#        trim_params = config["trimming"]["trimmomatic_pe"]
-#    shell:
-#        """
-#        trimmomatic PE {input[0]} {input[1]} \
-#        {output[0]} {output[1]} \
-#        {output[2]} {output[3]} \
-#        ILLUMINACLIP:{FILE}:2:30:10 
-#        """
+rule map_to_organelle_genomes:
+    """
+    map reads to organellar genomes
+    """
+    input:
+        "resources/org_genomes.fa",
+        "results/trimmed/{id}_1_trimmed.fq.gz",
+        "results/trimmed/{id}_2_trimmed.fq.gz"
+    output:
+        temp("results/alignments/{id}.sam")
+    threads: 4
+    shell:
+        """
+        bwa mem -t {threads} -M {input} > {output}
+        """
+
+rule sam_2_sorted_bam_unmapped:
+    """
+    convert sam to sorted bam, then subset bam for unmapped reads
+    """
+    input:
+         "results/alignments/{id}.sam"
+    output:
+         "results/unmapped/{id}.unmapped.bam"
+    shell:
+        """
+        samtools view -bS {input} | samtools sort -T {wildcards.id} - | samtools view -f4 -b - > {output}
+        """
+
+rule extract_unmapped_reads:
+    """
+    extract unmapped reads from bam
+    """
+    input: 
+        "results/unmapped/{id}.unmapped.bam"
+    output:
+        "results/unmapped/{id}.unmapped.fq"
+    shell:
+        """
+        bedtools bamtofastq -i {input} -fq {output}
+        """
+
+rule count_kmers:
+    """
+    count kmers in seq reads
+    """
+    input:
+        "results/unmapped/{id}.unmapped.fq"
+    output:
+        "results/counts/{id}.jf",
+        "results/counts/{id}.txt.gz"
+    params:
+        k=config['k'] 
+    threads: 16
+    shell:
+        """
+        jellyfish count -C -m {params.k} -s 500M -t {threads} -o {output[0]} {input}
+
+        jellyfish dump -tc {output[0]} | gzip > {output[1]}
+        """
