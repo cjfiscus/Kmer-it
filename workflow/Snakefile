@@ -74,10 +74,10 @@ rule trim_reads_pe:
         "resources/fq/{id}_1.fq.gz",
         "resources/fq/{id}_2.fq.gz"
     output:
-        "results/trimmed/{id}_1_trimmed.fq.gz",
-        "results/trimmed/{id}_1_trimmed_unpaired.fq.gz",
-        "results/trimmed/{id}_2_trimmed.fq.gz",
-        "results/trimmed/{id}_2_trimmed_unpaired.fq.gz"
+        temp("results/trimmed/{id}_1_trimmed.fq.gz"),
+        temp("results/trimmed/{id}_1_trimmed_unpaired.fq.gz"),
+        temp("results/trimmed/{id}_2_trimmed.fq.gz"),
+        temp("results/trimmed/{id}_2_trimmed_unpaired.fq.gz")
     params:
         trim_params = config["trimming"]["trimmomatic_pe"]
     threads: 3
@@ -97,7 +97,7 @@ rule trim_reads_se:
     input:
         "resources/fq/{id}.fq.gz"
     output:
-        "results/trimmed/{id}_trimmed.fq.gz"
+        temp("results/trimmed/{id}_trimmed.fq.gz")
     params:
         trim_params = config["trimming"]["trimmomatic_se"]
     threads: 3
@@ -146,7 +146,7 @@ rule sam_2_sorted_bam_unmapped:
     input:
          "results/alignments/{id}.sam"
     output:
-         "results/unmapped/{id}.unmapped.bam"
+         temp("results/unmapped/{id}.unmapped.bam")
     shell:
         """
         samtools view -bS {input} | samtools sort -T {wildcards.id} - | samtools view -f4 -b - > {output}
@@ -159,7 +159,7 @@ rule extract_unmapped_reads:
     input: 
         "results/unmapped/{id}.unmapped.bam"
     output:
-        "results/unmapped/{id}.unmapped.fq"
+        temp("results/unmapped/{id}.unmapped.fq")
     shell:
         """
         bedtools bamtofastq -i {input} -fq {output}
@@ -172,7 +172,7 @@ rule count_kmers:
     input:
         "results/unmapped/{id}.unmapped.fq"
     output:
-        "results/counts/{id}.jf",
+        temp("results/counts/{id}.jf"),
         "results/counts/{id}.txt.gz"
     params:
         k=config['k'] 
