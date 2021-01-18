@@ -35,13 +35,14 @@ rule build_organellar_genome_db:
         """
 
 # re-write following rule to create symlink, this is only for testing
-rule link_fastq:
+ruleorder: cp_fastq_pe > cp_fastq_se
+rule cp_fastq_pe:
     """
     copy file to resources
     """
     input:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
-        fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"]
+        fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"] if "fq2" in samples else "non-existing-filename"
     output:
         "resources/fq/{id}_1.fq.gz",
         "resources/fq/{id}_2.fq.gz"
@@ -50,7 +51,21 @@ rule link_fastq:
         cp {input.fq1} {output[0]}
         cp {input.fq2} {output[1]}
         """
-        
+       
+rule rule cp_fastq_se:
+    """
+    copy file to resources
+    """
+    input:
+        fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"]
+    output:
+        "resources/fq/{id}.fq.gz",
+    shell:
+        """
+        cp {input.fq1} {output}
+        """
+
+ruleorder: trim_reads_pe > trim_reads_se
 rule trim_reads_pe:
     """
     trim adapters and low quality sequence with trimmomatic for pe runs
@@ -75,7 +90,26 @@ rule trim_reads_pe:
         {params.trim_params}
         """
 
-rule map_to_organelle_genomes:
+rule trim_reads_se:
+    """
+    trim adapters and low quality sequence with trimmomatic for se runs
+    """
+    input:
+        "resources/fq/{id}.fq.gz"
+    output:
+        "results/trimmed/{id}_trimmed.fq.gz"
+    params:
+        trim_params = config["trimming"]["trimmomatic_se"]
+    threads: 3
+    shell:
+         """
+	 trimmomatic SE -threads {threads} \
+	 {input} {output} \
+	 {params.trim_params}
+	 """
+
+ruleorder: map_to_organelle_genomes_pe > map_to_organelle_genomes_se
+rule map_to_organelle_genomes_pe:
     """
     map reads to organellar genomes
     """
@@ -91,6 +125,20 @@ rule map_to_organelle_genomes:
         bwa mem -t {threads} -M {input} > {output}
         """
 
+rule map_to_organelle_genomes_se:
+    """
+    map reads to organelle genome
+    """
+    input:
+        "resources/org_genomes.fa",
+	"results/trimmed/{id}_trimmed.fq.gz"
+    output:
+        temp("results/alignments/{id}.sam")
+    threads: 4
+    shell:
+        """
+	bwa mem -t {threads} -M {input} > {output}
+	"""
 rule sam_2_sorted_bam_unmapped:
     """
     convert sam to sorted bam, then subset bam for unmapped reads
