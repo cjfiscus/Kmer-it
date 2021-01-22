@@ -34,11 +34,10 @@ rule build_organellar_genome_db:
         rm plastid.*.*.genomic.fna.gz       
         """
 
-# re-write following rule to create symlink, this is only for testing
-ruleorder: cp_fastq_pe > cp_fastq_se > dl_fastq_pe > dl_fastq_se
-rule cp_fastq_pe:
+ruleorder: ln_fastq_pe > ln_fastq_se > dl_fastq_pe > dl_fastq_se
+rule ln_fastq_pe:
     """
-    copy file to resources
+    link pe reads files
     """
     input:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
@@ -54,7 +53,7 @@ rule cp_fastq_pe:
 
 rule dl_fastq_pe:
     """
-    dl test
+    download pe reads files
     """
     params:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
@@ -68,9 +67,9 @@ rule dl_fastq_pe:
 	wget --no-check-certificate -O {output[1]} {params.fq2}
 	"""
 
-rule rule cp_fastq_se:
+rule rule ln_fastq_se:
     """
-    copy file to resources
+    link se reads file
     """
     input:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"]
@@ -83,7 +82,7 @@ rule rule cp_fastq_se:
 
 rule dl_fastq_se:
     """
-    dl test
+    download se reads file
     """
     params:
         fq=lambda wildcards: samples.loc[wildcards.id, "fq1"]
