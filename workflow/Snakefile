@@ -35,7 +35,7 @@ rule build_organellar_genome_db:
         """
 
 # re-write following rule to create symlink, this is only for testing
-ruleorder: cp_fastq_pe > cp_fastq_se
+ruleorder: cp_fastq_pe > cp_fastq_se > dl_fastq_pe > dl_fastq_se
 rule cp_fastq_pe:
     """
     copy file to resources
@@ -48,10 +48,26 @@ rule cp_fastq_pe:
         "resources/fq/{id}_2.fq.gz"
     shell:
         """
-        cp {input.fq1} {output[0]}
-        cp {input.fq2} {output[1]}
+        ln -sr {input.fq1} {output[0]}
+        ln -sr {input.fq2} {output[1]}
         """
-       
+
+rule dl_fastq_pe:
+    """
+    dl test
+    """
+    params:
+        fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
+	fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"]
+    output:
+        "resources/fq/{id}_1.fq.gz",
+	"resources/fq/{id}_2.fq.gz"
+    shell:
+        """
+	wget --no-check-certificate -O {output[0]} {params.fq1}
+	wget --no-check-certificate -O {output[1]} {params.fq2}
+	"""
+
 rule rule cp_fastq_se:
     """
     copy file to resources
@@ -62,8 +78,21 @@ rule rule cp_fastq_se:
         "resources/fq/{id}.fq.gz",
     shell:
         """
-        cp {input.fq1} {output}
+        ln -sr {input.fq1} {output}
         """
+
+rule dl_fastq_se:
+    """
+    dl test
+    """
+    params:
+        fq=lambda wildcards: samples.loc[wildcards.id, "fq1"]
+    output:
+        "resources/fq/{id}.fq.gz"
+    shell:
+        """
+	wget --no-check-certificate -O {output} {params.fq}
+	"""
 
 ruleorder: trim_reads_pe > trim_reads_se
 rule trim_reads_pe:

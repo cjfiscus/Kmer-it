@@ -1,3 +1,5 @@
-id	end	sample_name	fq1	fq2
-a	paired	test_paired	resources/SRR1945436_1.fastq.gz	resources/SRR1945436_2.fastq.gz
-b	single	test_single	resources/SRR1945436.fastq.gz	NA
+id	sample_name	end	fq1	fq2
+b	test_paired	paired	resources/SRR1945436_1.fastq.gz	resources/SRR1945436_2.fastq.gz
+c	test_single	single	resources/SRR1945434.fastq.gz	NA
+d	test_paired2	paired	https://cluster.hpcc.ucr.edu/\~cfisc004/A_thal_repeats/SRR1945437_1.fastq.gz	https://cluster.hpcc.ucr.edu/\~cfisc004/A_thal_repeats/SRR1945437_2.fastq.gz
+e	test_single2	single	https://cluster.hpcc.ucr.edu/~cfisc004/A_thal_repeats/SRR1945436.fastq.gz	NA

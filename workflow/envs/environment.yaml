@@ -6,6 +6,7 @@ dependencies:
 - bedtools=2.29.2
 - bwa=0.7.17
 - coreutils=8.25
+- ftputil=4.0.0
 - jellyfish=2.2.10
 - pandas=1.2.0
 - samtools=1.11
