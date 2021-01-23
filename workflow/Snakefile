@@ -10,29 +10,49 @@ rule all:
     input:
         expand("results/counts/{id}.txt.gz", id=all_ids)
 
-rule build_organellar_genome_db:
-    """
-    Download and format Organellar Genomes from NCBI Organelle Genome Resources
-    """
-    output:
-        "resources/org_genomes.fa", 
-        expand("resources/org_genomes.fa.{ext}", ext=["ann", "bwt", "pac", "sa"])
-    shell:
+if config["map_to_organellar_genomes"]["use_custom_org_genome"] == True:
+    rule index_custom_genome:
         """
-        # dl refseq from ncbi
-        wget -nd -np -r -A 'mitochondrion.*.*.genomic.fna.gz' ftp://ftp.ncbi.nlm.nih.gov/refseq/release/mitochondrion/
-        wget -nd -np -r -A 'plastid.*.*.genomic.fna.gz' ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plastid/
+        copy custom genome to resources and index
+        """
+        params:
+            path=config["map_to_organellar_genomes"]["custom_org_genome_path"]
+        output:
+            "resources/org_genomes.fa",
+            expand("resources/org_genomes.fa.{ext}", ext=["ann", "bwt", "pac", "sa"])
+        shell:
+            """
+            # copy custom genome to resources
+            cp {params.path} resources/org_genomes.fa
 
-        # combine files
-        gunzip -c *.fna.gz > resources/org_genomes.fa        
+            # index with bwa
+            bwa index resources/org_genomes.fa
+            """
 
-        # index with bwa
-        bwa index resources/org_genomes.fa 
+else:
+    rule build_organellar_genome_db:
+        """
+        Download and format Organellar Genomes from NCBI Organelle Genome Resources
+        """
+        output:
+            "resources/org_genomes.fa", 
+            expand("resources/org_genomes.fa.{ext}", ext=["ann", "bwt", "pac", "sa"])
+        shell:
+            """
+            # dl refseq from ncbi
+            wget -nd -np -r -A 'mitochondrion.*.*.genomic.fna.gz' ftp://ftp.ncbi.nlm.nih.gov/refseq/release/mitochondrion/
+            wget -nd -np -r -A 'plastid.*.*.genomic.fna.gz' ftp://ftp.ncbi.nlm.nih.gov/refseq/release/plastid/
+
+            # combine files
+            gunzip -c *.fna.gz > resources/org_genomes.fa        
+
+            # index with bwa
+            bwa index resources/org_genomes.fa 
         
-        # cleanup 
-        rm mitochondrion.*.*.genomic.fna.gz
-        rm plastid.*.*.genomic.fna.gz       
-        """
+            # cleanup 
+            rm mitochondrion.*.*.genomic.fna.gz
+            rm plastid.*.*.genomic.fna.gz       
+            """
 
 ruleorder: ln_fastq_pe > ln_fastq_se > dl_fastq_pe > dl_fastq_se
 rule ln_fastq_pe:
@@ -93,105 +113,166 @@ rule dl_fastq_se:
 	wget --no-check-certificate -O {output} {params.fq}
 	"""
 
-ruleorder: trim_reads_pe > trim_reads_se
-rule trim_reads_pe:
-    """
-    trim adapters and low quality sequence with trimmomatic for pe runs
-    """
-    input:
-        "resources/fq/{id}_1.fq.gz",
-        "resources/fq/{id}_2.fq.gz"
-    output:
-        temp("results/trimmed/{id}_1_trimmed.fq.gz"),
-        temp("results/trimmed/{id}_1_trimmed_unpaired.fq.gz"),
-        temp("results/trimmed/{id}_2_trimmed.fq.gz"),
-        temp("results/trimmed/{id}_2_trimmed_unpaired.fq.gz")
-    params:
-        trim_params = config["trimming"]["trimmomatic_pe"]
-    threads: 3
-    shell:
+if config["trimming"]["enable"] == True:
+    ruleorder: trim_reads_pe > trim_reads_se
+    rule trim_reads_pe:
         """
-        trimmomatic PE -threads {threads} \
-        {input[0]} {input[1]} \
-        {output[0]} {output[1]} \
-        {output[2]} {output[3]} \
-        {params.trim_params}
+        trim adapters and low quality sequence with trimmomatic for pe runs
         """
+        input:
+            "resources/fq/{id}_1.fq.gz",
+            "resources/fq/{id}_2.fq.gz"
+        output:
+            temp("results/trimmed/{id}_1_trimmed.fq.gz"),
+            temp("results/trimmed/{id}_1_trimmed_unpaired.fq.gz"),
+            temp("results/trimmed/{id}_2_trimmed.fq.gz"),
+            temp("results/trimmed/{id}_2_trimmed_unpaired.fq.gz")
+        params:
+            trim_params = config["trimming"]["trimmomatic_pe"]
+        threads: 3
+        shell:
+            """
+            echo "trimming with trimmomatic..."
+            trimmomatic PE -threads {threads} \
+            {input[0]} {input[1]} \
+            {output[0]} {output[1]} \
+            {output[2]} {output[3]} \
+            {params.trim_params}
+            """
 
-rule trim_reads_se:
-    """
-    trim adapters and low quality sequence with trimmomatic for se runs
-    """
-    input:
-        "resources/fq/{id}.fq.gz"
-    output:
-        temp("results/trimmed/{id}_trimmed.fq.gz")
-    params:
-        trim_params = config["trimming"]["trimmomatic_se"]
-    threads: 3
-    shell:
-         """
-	 trimmomatic SE -threads {threads} \
-	 {input} {output} \
-	 {params.trim_params}
-	 """
+    rule trim_reads_se:
+        """
+        trim adapters and low quality sequence with trimmomatic for se runs
+        """
+        input:
+            "resources/fq/{id}.fq.gz"
+        output:
+            temp("results/trimmed/{id}_trimmed.fq.gz")
+        params:
+            trim_params = config["trimming"]["trimmomatic_se"]
+        threads: 3
+        shell:
+            """
+            echo "trimming with trimmomatic..."
+            trimmomatic SE -threads {threads} \
+            {input} {output} \
+            {params.trim_params}
+            """
+else:
+    ruleorder: skip_trimming_pe > skip_trimming_se
+    rule skip_trimming_pe:
+        """
+        skip trimming for pe reads
+        """
+        input:
+            "resources/fq/{id}_1.fq.gz",
+            "resources/fq/{id}_2.fq.gz"
+        output:
+            temp("results/trimmed/{id}_1_trimmed.fq.gz"),
+            temp("results/trimmed/{id}_2_trimmed.fq.gz")
+        shell:
+            """
+            ln -sr {input[0]} {output[0]}
+            ln -sr {input[1]} {output[1]}
+            """
+	
+    rule skip_trimming_se:
+        """
+        skip trimming for se reads
+        """
+        input:
+            "resources/fq/{id}.fq.gz"
+        output:
+            temp("results/trimmed/{id}_trimmed.fq.gz")
+        shell:
+            """
+            ln -sr {input} {output}
+            """
+if config["map_to_organellar_genomes"]["enable"] == True:
+    ruleorder: map_to_organelle_genomes_pe > map_to_organelle_genomes_se
+    rule map_to_organelle_genomes_pe:
+        """
+        map reads to organellar genomes
+        """
+        input:
+            "resources/org_genomes.fa",
+            "results/trimmed/{id}_1_trimmed.fq.gz",
+            "results/trimmed/{id}_2_trimmed.fq.gz"
+        output:
+            temp("results/alignments/{id}.sam")
+        threads: 4
+        shell:
+            """
+            bwa mem -t {threads} -M {input} > {output}
+            """
 
-ruleorder: map_to_organelle_genomes_pe > map_to_organelle_genomes_se
-rule map_to_organelle_genomes_pe:
-    """
-    map reads to organellar genomes
-    """
-    input:
-        "resources/org_genomes.fa",
-        "results/trimmed/{id}_1_trimmed.fq.gz",
-        "results/trimmed/{id}_2_trimmed.fq.gz"
-    output:
-        temp("results/alignments/{id}.sam")
-    threads: 4
-    shell:
+    rule map_to_organelle_genomes_se:
         """
-        bwa mem -t {threads} -M {input} > {output}
+        map reads to organelle genome
         """
+        input:
+            "resources/org_genomes.fa",
+	    "results/trimmed/{id}_trimmed.fq.gz"
+        output:
+            temp("results/alignments/{id}.sam")
+        threads: 4
+        shell:
+            """
+	    bwa mem -t {threads} -M {input} > {output}
+	    """
+    rule sam_2_sorted_bam_unmapped:
+        """
+        convert sam to sorted bam, then subset bam for unmapped reads
+        """
+	input:
+            "results/alignments/{id}.sam"
+        output:
+            temp("results/unmapped/{id}.unmapped.bam")
+        shell:
+            """
+            samtools view -bS {input} | samtools sort -T {wildcards.id} - | samtools view -f4 -b - > {output}
+            """
 
-rule map_to_organelle_genomes_se:
-    """
-    map reads to organelle genome
-    """
-    input:
-        "resources/org_genomes.fa",
-	"results/trimmed/{id}_trimmed.fq.gz"
-    output:
-        temp("results/alignments/{id}.sam")
-    threads: 4
-    shell:
+    rule extract_unmapped_reads:
         """
-	bwa mem -t {threads} -M {input} > {output}
-	"""
-rule sam_2_sorted_bam_unmapped:
-    """
-    convert sam to sorted bam, then subset bam for unmapped reads
-    """
-    input:
-         "results/alignments/{id}.sam"
-    output:
-         temp("results/unmapped/{id}.unmapped.bam")
-    shell:
+        extract unmapped reads from bam
         """
-        samtools view -bS {input} | samtools sort -T {wildcards.id} - | samtools view -f4 -b - > {output}
+        input: 
+            "results/unmapped/{id}.unmapped.bam"
+        output:
+            temp("results/unmapped/{id}.unmapped.fq")
+        shell:
+            """
+            bedtools bamtofastq -i {input} -fq {output}
+            """
+else:
+    ruleorder: skip_mapping_pe > skip_mapping_se
+    rule skip_mapping_pe:
         """
+        skip mapping 
+        """
+        input: 
+            "results/trimmed/{id}_1_trimmed.fq.gz",
+            "results/trimmed/{id}_2_trimmed.fq.gz"
+        output:
+            temp("results/unmapped/{id}.unmapped.fq")
+        shell:
+            """
+            gunzip -c {input} > {output}
+            """
 
-rule extract_unmapped_reads:
-    """
-    extract unmapped reads from bam
-    """
-    input: 
-        "results/unmapped/{id}.unmapped.bam"
-    output:
-        temp("results/unmapped/{id}.unmapped.fq")
-    shell:
+    rule skip_mapping_se:
         """
-        bedtools bamtofastq -i {input} -fq {output}
+        skip mapping
         """
+        input:
+            "results/trimmed/{id}_trimmed.fq.gz"
+        output:
+            temp("results/unmapped/{id}.unmapped.fq")
+        shell:
+            """
+            gunzip -c {input} > {output}
+            """
 
 rule count_kmers:
     """
