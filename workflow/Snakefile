@@ -188,6 +188,7 @@ else:
             """
             ln -sr {input} {output}
             """
+
 if config["map_to_organellar_genomes"]["enable"] == True:
     ruleorder: map_to_organelle_genomes_pe > map_to_organelle_genomes_se
     rule map_to_organelle_genomes_pe:
