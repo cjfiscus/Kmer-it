@@ -8,7 +8,92 @@ all_ids=list(samples["id"])
 
 rule all:
     input:
+        "results/count_tbl_gc_cov.txt"
+
+if config["normalization"]["gc_correct"] == True:
+    rule gc_correct:
+        input:
+            "results/count_tbl.txt"
+        output:
+            "results/count_tbl_gc.txt"
+        shell:
+            """
+	    Rscript 005a_gc_correct.R "$FILTERED" "$GCNORM" "$REF_PROP_TABLE" "$PROP_TABLE"
+	    """
+else:
+    rule skip_gc_correct:
+        input:
+	    "results/count_tbl.txt"
+        output:
+	    "results/count_tbl_gc.txt"
+            shell:
+                """
+		ln -sr {input} {output}
+                """
+
+if config["normalization"]["cov_norm"] == True:
+    rule cov_norm:
+        input:
+            "results/count_tbl_gc.txt"
+        output:
+            "results/count_tbl_gc_cov.txt"
+        shell:
+            """
+	    Rscript 005b_rle.R "$GCNORM" "$GCTMMNORM"
+	    """
+else:
+    rule skip_cov_norm:
+        input:
+            "results/count_tbl_gc.txt"
+        output:
+            "results/count_tbl_gc_cov.txt"
+        shell:
+            """
+	    ln -sr {input} {output}
+	    """
+
+rule join_kmers:
+    input:
         expand("results/counts/{id}.txt.gz", id=all_ids)
+    output:
+        "results/count_tbl.txt"
+    shell:
+        """
+	# def function for join
+	joinm() {
+        f1=$1; f2=$2; shift 2;
+        if [ $# -gt 0 ]
+        then
+        # join files
+        join -a 1 -a 2 -e 0 "$f1" "$f2" -o auto -t $'\t' | joinm - "$@"
+
+        else
+        # join 2 files
+        join -a 1 -a 2 -e 0 "$f1" "$f2" -o auto -t $'\t'
+
+        fi
+        }
+
+        ## join counts across samples
+        joinm results/counts/*.txt > temp.tmp
+
+        ## make header
+	HEADER=$(echo "mer")
+        NUM=$(ls results/counts/*.txt | wc -l)
+
+        for i in `seq 1 $NUM`
+        do
+        NAME=$(ls results/counts/*.txt | head -n $i | tail -n1)
+        NAME=$(basename "$NAME" | cut -d. -f1)
+        HEADER=$(echo "$HEADER""\t""$NAME")
+        done
+
+        # add header to file
+        sed '1s/^/'"$HEADER"'\n/' temp.tmp > results/count_tbl.txt
+
+        ## cleanup
+        rm temp.tmp
+	"""
 
 if config["map_to_organellar_genomes"]["use_custom_org_genome"] == True:
     rule index_custom_genome:
@@ -118,6 +203,82 @@ if config["trimming"]["enable"] == True:
     rule trim_reads_pe:
         """
         trim adapters and low quality sequence with trimmomatic for pe runs
+        """
+        input:
+            "resources/fq/{id}_1.fq.gz",
+            "resources/fq/{id}_2.fq.gz"
+        output:
+            temp("results/trimmed/{id}_1_trimmed.fq.gz"),
+            temp("results/trimmed/{id}_1_trimmed_unpaired.fq.gz"),
+            temp("results/trimmed/{id}_2_trimmed.fq.gz"),
+            temp("results/trimmed/{id}_2_trimmed_unpaired.fq.gz")
+        params:
+            trim_params = config["trimming"]["trimmomatic_pe"]
+        threads: 3
+        shell:
+            """
+            echo "trimming with trimmomatic..."
+            trimmomatic PE -threads {threads} \
+            {input[0]} {input[1]} \
+            {output[0]} {output[1]} \
+            {output[2]} {output[3]} \
+            {params.trim_params}
+            """
+
+    rule trim_reads_se:
+        """
+        trim adapters and low quality sequence with trimmomatic for se runs
+        """
+        input:
+            "resources/fq/{id}.fq.gz"
+        output:
+            temp("results/trimmed/{id}_trimmed.fq.gz")
+        params:
+            trim_params = config["trimming"]["trimmomatic_se"]
+        threads: 3
+        shell:
+            """
+            echo "trimming with trimmomatic..."
+            trimmomatic SE -threads {threads} \
+            {input} {output} \
+            {params.trim_params}
+            """
+else:
+    ruleorder: skip_trimming_pe > skip_trimming_se
+    rule skip_trimming_pe:
+        """
+        skip trimming for pe reads
+        """
+        input:
+            "resources/fq/{id}_1.fq.gz",
+            "resources/fq/{id}_2.fq.gz"
+        output:
+            temp("results/trimmed/{id}_1_trimmed.fq.gz"),
+            temp("results/trimmed/{id}_2_trimmed.fq.gz")
+        shell:
+            """
+            ln -sr {input[0]} {output[0]}
+            ln -sr {input[1]} {output[1]}
+            """
+	
+    rule skip_trimming_se:
+        """
+        skip trimming for se reads
+        """
+        input:
+            "resources/fq/{id}.fq.gz"
+        output:
+            temp("results/trimmed/{id}_trimmed.fq.gz")
+        shell:
+            """
+            ln -sr {input} {output}
+            """
+
+if config["error_correct"]["enable"] == True:
+    ruleorder: correct_reads_pe > correct_reads_se
+    rule correct_reads_pe:
+        """
+        correct likely base calling errors using bayeshammer
         """
         input:
             "resources/fq/{id}_1.fq.gz",

@@ -15,14 +15,14 @@ error_correct:
 ## mapping options
 map_to_organellar_genomes:
     enable: true # true | false
-    use_custom_org_genome: false # true | false
+    use_custom_org_genome: true # true | false
     custom_org_genome_path: "genome.fa"
 
 ## K-mer to use
-k: 12
+k: 6
 
 ## count normalization options
 normalization:
-    enable: true # true | false
-    gc_binning: true # true | false
+    gc_correct: true # true | false
+    cov_norm: true # true | false
     norm_method: "RLE"
