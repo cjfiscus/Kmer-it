@@ -10,7 +10,7 @@ trimming:
 
 ## error correction options
 error_correct:
-    enable: false # true | false
+    enable: true # true | false
 
 ## mapping options
 map_to_organellar_genomes:
