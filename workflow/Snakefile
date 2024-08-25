@@ -9,11 +9,7 @@ all_ids=list(samples["id"])
 
 rule all:
     input:
-        "results/count_tbl_gc_cov.txt",
-        expand("results/corrected/{id}_1_trimmed_ec.fq.gz", id=samples.query('end == "PE"').id),
-        expand("results/corrected/{id}_trimmed_ec.fq.gz", id=samples.query('end == "SE"').id),
-        expand("results/trimmed/{id}_1_trimmed.fq.gz", id=samples.query('end == "PE"').id),
-        expand("results/trimmed/{id}_trimmed.fq.gz", id=samples.query('end == "SE"').id)
+        "results/count_tbl_gc_cov.txt"
 
 if config["normalization"]["gc_correct"] == True:
     rule gc_correct:
@@ -64,40 +60,7 @@ rule join_kmers:
         "results/count_tbl.txt"
     shell:
         """
-	# def function for join
-	joinm() {
-        f1=$1; f2=$2; shift 2;
-        if [ $# -gt 0 ]
-        then
-        # join files
-        join -a 1 -a 2 -e 0 "$f1" "$f2" -o auto -t $'\t' | joinm - "$@"
-
-        else
-        # join 2 files
-        join -a 1 -a 2 -e 0 "$f1" "$f2" -o auto -t $'\t'
-
-        fi
-        }
-
-        ## join counts across samples
-        joinm results/counts/*.txt > temp.tmp
-
-        ## make header
-	HEADER=$(echo "mer")
-        NUM=$(ls results/counts/*.txt | wc -l)
-
-        for i in `seq 1 $NUM`
-        do
-        NAME=$(ls results/counts/*.txt | head -n $i | tail -n1)
-        NAME=$(basename "$NAME" | cut -d. -f1)
-        HEADER=$(echo "$HEADER""\t""$NAME")
-        done
-
-        # add header to file
-        sed '1s/^/'"$HEADER"'\n/' temp.tmp > results/count_tbl.txt
-
-        ## cleanup
-        rm temp.tmp
+        bash scripts/mk_count_tbl.sh {input} {output}
 	"""
 
 if config["map_to_organellar_genomes"]["use_custom_org_genome"] == True:
@@ -153,8 +116,8 @@ rule ln_fastq_pe:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
         fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"] if "fq2" in samples else "non-existing-filename"
     output:
-        "resources/fq/{id}_1.fq.gz",
-        "resources/fq/{id}_2.fq.gz"
+        "resources/pe/raw/{id}_1.fq.gz",
+        "resources/pe/raw/{id}_2.fq.gz"
     run:
         #print(f"Starting ln_fastq_pe with input: {input} and output: {output}")
         shell("ln -sr {input.fq1} {output[0]}")
@@ -168,8 +131,8 @@ rule dl_fastq_pe:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
 	fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"] if "fq2" in samples else "non-existing filename"
     output:
-        "resources/fq/{id}_1.fq.gz",
-	"resources/fq/{id}_2.fq.gz"
+        "resources/pe/raw/{id}_1.fq.gz",
+	"resources/pe/raw/{id}_2.fq.gz"
     shell:
         """
 	wget --no-check-certificate -O {output[0]} {params.fq1}
@@ -183,7 +146,7 @@ rule rule ln_fastq_se:
     input:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"]
     output:
-        "resources/fq/{id}.fq.gz",
+        "resources/se/raw/{id}.fq.gz",
     shell:
         """
         ln -sr {input.fq1} {output}
@@ -196,7 +159,7 @@ rule dl_fastq_se:
     params:
         fq=lambda wildcards: samples.loc[wildcards.id, "fq1"]
     output:
-        "resources/fq/{id}.fq.gz"
+        "resources/se/raw/{id}.fq.gz"
     shell:
         """
 	wget --no-check-certificate -O {output} {params.fq}
@@ -209,13 +172,13 @@ if config["trimming"]["enable"] == True:
         trim adapters and low quality sequence with trimmomatic for pe runs
         """
         input:
-            "resources/fq/{id}_1.fq.gz",
-            "resources/fq/{id}_2.fq.gz"
+            "resources/pe/raw/{id}_1.fq.gz",
+            "resources/pe/raw/{id}_2.fq.gz"
         output:
-            temp("results/trimmed/{id}_1_trimmed.fq.gz"),
-            temp("results/trimmed/{id}_1_trimmed_unpaired.fq.gz"),
-            temp("results/trimmed/{id}_2_trimmed.fq.gz"),
-            temp("results/trimmed/{id}_2_trimmed_unpaired.fq.gz")
+            temp("results/pe/trim/{id}_1_trimmed.fq.gz"),
+            temp("results/pe/trim/{id}_1_trimmed_unpaired.fq.gz"),
+            temp("results/pe/trim/{id}_2_trimmed.fq.gz"),
+            temp("results/pe/trim/{id}_2_trimmed_unpaired.fq.gz")
         params:
             trim_params = config["trimming"]["trimmomatic_pe"]
         threads: 3
@@ -234,9 +197,9 @@ if config["trimming"]["enable"] == True:
         trim adapters and low quality sequence with trimmomatic for se runs
         """
         input:
-            "resources/fq/{id}.fq.gz"
+            "resources/se/raw/{id}.fq.gz"
         output:
-            temp("results/trimmed/{id}_trimmed.fq.gz")
+            temp("results/se/trim/{id}_trimmed.fq.gz")
         params:
             trim_params = config["trimming"]["trimmomatic_se"]
         threads: 3
@@ -254,11 +217,11 @@ else:
         skip trimming for pe reads
         """
         input:
-            "resources/fq/{id}_1.fq.gz",
-            "resources/fq/{id}_2.fq.gz"
+            "resources/pe/raw/{id}_1.fq.gz",
+            "resources/pe/raw/{id}_2.fq.gz"
         output:
-            temp("results/trimmed/{id}_1_trimmed.fq.gz"),
-            temp("results/trimmed/{id}_2_trimmed.fq.gz")
+            temp("results/pe/trim/{id}_1_trimmed.fq.gz"),
+            temp("results/pe/trim/{id}_2_trimmed.fq.gz")
         shell:
             """
             ln -sr {input[0]} {output[0]}
@@ -270,9 +233,9 @@ else:
         skip trimming for se reads
         """
         input:
-            "resources/fq/{id}.fq.gz"
+            "resources/se/raw/{id}.fq.gz"
         output:
-            temp("results/trimmed/{id}_trimmed.fq.gz")
+            temp("results/se/trim/{id}_trimmed.fq.gz")
         shell:
             """
             ln -sr {input} {output}
@@ -285,20 +248,20 @@ if config["error_correct"]["enable"] == True:
         correct likely base calling errors using bayeshammer
         """
         input:
-            "results/trimmed/{id}_1_trimmed.fq.gz",
-            "results/trimmed/{id}_2_trimmed.fq.gz"
+            "results/pe/trim/{id}_1_trimmed.fq.gz",
+            "results/pe/trim/{id}_2_trimmed.fq.gz"
         output:
-            "results/corrected/{id}_1_trimmed_ec.fq.gz",
-            "results/corrected/{id}_2_trimmed_ec.fq.gz",
+            "results/pe/corr/{id}_1_trimmed_ec.fq.gz",
+            "results/pe/corr/{id}_2_trimmed_ec.fq.gz",
         threads: 3
         shell:
             """
             spades.py -t {threads} -m 64 --only-error-correction \
             -1 {input[0]} \
-            -2 {input[1]} -o ./results
+            -2 {input[1]} -o ./results/{wildcards.id}
 
-            mv results/corrected/{wildcards.id}_1_trimmed_ec.fq.00.0_0.cor.fastq.gz {output[0]}
-            mv results/corrected/{wildcards.id}_2_trimmed_ec.fq.00.0_0.cor.fastq.gz {output[1]}
+            mv results/{wildcards.id}/corrected/{wildcards.id}_1_trimmed.fq.00.0_0.cor.fastq.gz {output[0]}
+            mv results/{wildcards.id}/corrected/{wildcards.id}_2_trimmed.fq.00.0_0.cor.fastq.gz {output[1]}
             """
 
     rule correct_reads_se:
@@ -306,9 +269,9 @@ if config["error_correct"]["enable"] == True:
         correct likely base calling errors with bayeshammer
         """
         input:
-            "results/trimmed/{id}_trimmed.fq.gz"
+            "results/se/trim/{id}_trimmed.fq.gz"
         output:
-            "results/corrected/{id}_trimmed_ec.fq.gz"
+            "results/se/corr/{id}_trimmed_ec.fq.gz"
         threads: 3
         shell:
             """
@@ -324,11 +287,11 @@ else:
         skip error correction for pe reads
         """
         input:
-            "results/trimmed/{id}_1_trimmed.fq.gz",
-            "results/trimmed/{id}_2_trimmed.fq.gz"
+            "results/pe/trim/{id}_1_trimmed.fq.gz",
+            "results/pe/trim/{id}_2_trimmed.fq.gz"
         output:
-            "results/corrected/{id}_1_trimmed_ec.fq.gz",
-            "results/corrected/{id}_2_trimmed_ec.fq.gz"
+            "results/pe/corr/{id}_1_trimmed_ec.fq.gz",
+            "results/pe/corr/{id}_2_trimmed_ec.fq.gz"
         shell:
             """
             ln -sr {input[0]} {output[0]}
@@ -340,9 +303,9 @@ else:
         skip error correction for se reads
         """
         input:
-            "results/trimmed/{id}_trimmed.fq.gz"
+            "results/se/trim/{id}_trimmed.fq.gz"
         output:
-            "results/corrected/{id}_trimmed_ec.fq.gz"
+            "results/se/corr/{id}_trimmed_ec.fq.gz"
         shell:
             """
             ln -sr {input} {output}
@@ -356,8 +319,8 @@ if config["map_to_organellar_genomes"]["enable"] == True:
         """
         input:
             "resources/org_genomes.fa",
-            "results/corrected/{id}_1_trimmed_ec.fq.gz",
-            "results/corrected/{id}_2_trimmed_ec.fq.gz"
+            "results/pe/corr/{id}_1_trimmed_ec.fq.gz",
+            "results/pe/corr/{id}_2_trimmed_ec.fq.gz"
         output:
             temp("results/alignments/{id}.sam")
         threads: 4
@@ -372,7 +335,7 @@ if config["map_to_organellar_genomes"]["enable"] == True:
         """
         input:
             "resources/org_genomes.fa",
-	    "results/corrected/{id}_trimmed_ec.fq.gz"
+	    "results/se/corr/{id}_trimmed_ec.fq.gz"
         output:
             temp("results/alignments/{id}.sam")
         threads: 4
@@ -412,8 +375,8 @@ else:
         skip mapping 
         """
         input: 
-            "results/corrected/{id}_1_trimmed_ec.fq.gz",
-            "results/corrected/{id}_2_trimmed_ec.fq.gz"
+            "results/pe/corr/{id}_1_trimmed_ec.fq.gz",
+            "results/pe/corr/{id}_2_trimmed_ec.fq.gz"
         output:
             temp("results/unmapped/{id}.unmapped.fq")
         shell:
@@ -426,7 +389,7 @@ else:
         skip mapping
         """
         input:
-            "results/corrected/{id}_trimmed_ec.fq.gz"
+            "results/se/corr/{id}_trimmed_ec.fq.gz"
         output:
             temp("results/unmapped/{id}.unmapped.fq")
         shell:

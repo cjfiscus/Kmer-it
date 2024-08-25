@@ -16,7 +16,7 @@ error_correct:
 map_to_organellar_genomes:
     enable: true # true | false
     use_custom_org_genome: true # true | false
-    custom_org_genome_path: "genome.fa"
+    custom_org_genome_path: "resources/pt_genome.fa"
 
 ## K-mer to use
 k: 6
