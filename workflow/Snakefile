@@ -9,17 +9,34 @@ all_ids=list(samples["id"])
 
 rule all:
     input:
-        "results/count_tbl_gc_cov.txt"
+        "results/count_tbl_gc_cov.txt.gz"
 
 if config["normalization"]["gc_correct"] == True:
-    rule gc_correct:
+    rule calc_gc:
+        """
+	calc GC bins per sample
+	"""
         input:
-            "results/count_tbl.txt"
+            "results/counts/{id}.txt.gz"
         output:
-            "results/count_tbl_gc.txt"
+            "results/counts/gc/{id}.txt"
         shell:
             """
-	    Rscript 005a_gc_correct.R "$FILTERED" "$GCNORM" "$REF_PROP_TABLE" "$PROP_TABLE"
+            python scripts/calc_gc.py {input} > {output}
+            """
+
+    rule gc_correct:
+        input:
+            "results/count_tbl.txt.gz",
+	    expand("results/counts/gc/{id}.txt", id=all_ids)
+        output:
+            "results/count_tbl_gc.txt.gz"
+        shell:
+            """
+            cat results/counts/gc/*.txt > results/allgc.txt
+	    Rscript scripts/calc_ref_gc_bins.R results/allgc.txt results/gc_ref.txt
+
+	    Rscript scripts/gc_correct_tbl.R {input[0]} {output} results/allgc.txt results/gc_ref.txt
 	    """
 else:
     rule skip_gc_correct:
@@ -35,9 +52,9 @@ else:
 if config["normalization"]["cov_norm"] == True:
     rule cov_norm:
         input:
-            "results/count_tbl_gc.txt"
+            "results/count_tbl_gc.txt.gz"
         output:
-            "results/count_tbl_gc_cov.txt"
+            "results/count_tbl_gc_cov.txt.gz"
         shell:
             """
 	    Rscript 005b_rle.R "$GCNORM" "$GCTMMNORM"
@@ -45,9 +62,9 @@ if config["normalization"]["cov_norm"] == True:
 else:
     rule skip_cov_norm:
         input:
-            "results/count_tbl_gc.txt"
+            "results/count_tbl_gc.txt.gz"
         output:
-            "results/count_tbl_gc_cov.txt"
+            "results/count_tbl_gc_cov.txt.gz"
         shell:
             """
 	    ln -sr {input} {output}
@@ -57,7 +74,7 @@ rule join_kmers:
     input:
         expand("results/counts/{id}.txt.gz", id=all_ids)
     output:
-        "results/count_tbl.txt"
+        "results/count_tbl.txt.gz"
     shell:
         """
         bash scripts/mk_count_tbl.sh {input} {output}
