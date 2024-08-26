@@ -1,5 +1,6 @@
 # Kmer-it config
 
+## sample file
 sample_file: "config/samples.tsv"
 
 ## trimming options
@@ -25,4 +26,8 @@ k: 6
 normalization:
     gc_correct: true # true | false
     cov_norm: true # true | false
-    norm_method: "RLE"
+
+## enable cnv ests from kmers 
+estimate_cnv:
+    enable: true # true | false
+    seq_lib: "resources/seqs.fa"

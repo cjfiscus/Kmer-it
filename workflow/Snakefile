@@ -9,7 +9,7 @@ all_ids=list(samples["id"])
 
 rule all:
     input:
-        "results/count_tbl_gc_cov.txt.gz"
+        "results/count_tbl_gc_qq.txt.gz"
 
 if config["normalization"]["gc_correct"] == True:
     rule calc_gc:
@@ -41,9 +41,9 @@ if config["normalization"]["gc_correct"] == True:
 else:
     rule skip_gc_correct:
         input:
-	    "results/count_tbl.txt"
+	    "results/count_tbl.txt.gz"
         output:
-	    "results/count_tbl_gc.txt"
+	    "results/count_tbl_gc.txt.gz"
             shell:
                 """
 		ln -sr {input} {output}
@@ -54,10 +54,10 @@ if config["normalization"]["cov_norm"] == True:
         input:
             "results/count_tbl_gc.txt.gz"
         output:
-            "results/count_tbl_gc_cov.txt.gz"
+            "results/count_tbl_gc_qq.txt.gz"
         shell:
             """
-	    Rscript 005b_rle.R "$GCNORM" "$GCTMMNORM"
+	    Rscript scripts/norm_qq.R {input} {output}
 	    """
 else:
     rule skip_cov_norm:
