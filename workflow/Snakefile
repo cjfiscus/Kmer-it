@@ -7,9 +7,38 @@ configfile: "config/config.yaml"
 samples = pd.read_table("config/samples.tsv").set_index("id", drop=False)
 all_ids=list(samples["id"])
 
-rule all:
-    input:
-        "results/count_tbl_gc_qq.txt.gz"
+if config["estimate_cnv"]["enable"] == True:
+    rule all:
+        input:
+            "results/count_tbl_gc_qq.txt.gz",
+	    expand("results/cn_ests/{id}.txt", id=all_ids)
+
+    rule est_cn:
+        """
+        kmer based copy number estimates
+        """
+        input:
+            "results/count_tbl_gc_qq.txt.gz"
+        output:
+            "results/cn_ests/{id}.txt"
+        params:
+            seqlib = config["estimate_cnv"]["seq_lib"],
+            k = config["k"]
+        shell:
+            """
+	    # determine index for id
+            INDEX=$(zgrep -m 1 "" {input} | awk -v col={wildcards.id} '{{for(i=1;i<=NF;i++) if($i==col) print i}}')
+
+	    zcat {input} | cut -f1,"$INDEX" | tail -n +2 > temp.tmp
+
+	    python scripts/assign_seq_score_mod.py temp.tmp {params.seqlib} {params.k} > {output}
+	    """
+
+else:
+    rule all:
+        input:
+	    "results/count_tbl_gc_qq.txt.gz"
+
 
 if config["normalization"]["gc_correct"] == True:
     rule calc_gc:
