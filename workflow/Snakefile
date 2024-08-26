@@ -32,6 +32,7 @@ if config["estimate_cnv"]["enable"] == True:
 	    zcat {input} | cut -f1,"$INDEX" | tail -n +2 > {wildcards.id}.tmp
 
 	    python scripts/assign_seq_score_mod.py {wildcards.id}.tmp {params.seqlib} {params.k} > {output}
+	    rm {wildcards.id}.tmp
 	    """
 
 else:
@@ -304,10 +305,10 @@ if config["error_correct"]["enable"] == True:
             """
             spades.py -t {threads} -m 64 --only-error-correction \
             -1 {input[0]} \
-            -2 {input[1]} -o ./results/{wildcards.id}
-
-            mv results/{wildcards.id}/corrected/{wildcards.id}_1_trimmed.fq.00.0_0.cor.fastq.gz {output[0]}
-            mv results/{wildcards.id}/corrected/{wildcards.id}_2_trimmed.fq.00.0_0.cor.fastq.gz {output[1]}
+            -2 {input[1]} -o ./results/pe/{wildcards.id}
+            
+            mv results/pe/{wildcards.id}/corrected/{wildcards.id}_1_trimmed.fq.00.0_0.cor.fastq.gz {output[0]}
+            mv results/pe/{wildcards.id}/corrected/{wildcards.id}_2_trimmed.fq.00.0_0.cor.fastq.gz {output[1]}
             """
 
     rule correct_reads_se:
@@ -322,9 +323,9 @@ if config["error_correct"]["enable"] == True:
         shell:
             """
             spades.py -t {threads} -m 64 --only-error-correction \
-            -s {input} -o ./results
+            -s {input} -o ./results/se/{wildcards.id}
 
-            mv results/corrected/{wildcards.id}_trimmed.fq.00.0_0.cor.fastq.gz {output} 
+            mv results/se/{wildcards.id}/corrected/{wildcards.id}_trimmed.fq.00.0_0.cor.fastq.gz {output} 
             """
 else:
     ruleorder: skip_correct_reads_pe > skip_correct_reads_se

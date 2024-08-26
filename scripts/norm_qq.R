@@ -28,7 +28,7 @@ rm(counts)
 # write out plot data
 p<-as.data.frame(cbind(norm$voom.xy$x, norm$voom.xy$y))
 names(p)<-c(norm$voom.xy$xlab, norm$voom.xy$ylab)
-write.table(p, "voom_mean_var.txt", sep="\t", quote=F, row.names=F)
+write.table(p, "results/voom_mean_var.txt", sep="\t", quote=F, row.names=F)
 
 # write out normalized counts
 counts<-as.data.table(cbind(kmers, norm$E))
