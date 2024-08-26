@@ -7,8 +7,8 @@ Several steps of the workflow can be optionally turned off by editing the config
 ## Workflow description
 ### 1. Data import
 The workflow can handle both paired-end or single-end high throughput sequencing reads provided as either a raw or gzipped [FASTQ file](https://en.wikipedia.org/wiki/FASTQ_format). 
-The files can be available locally by providing the path (see sample file) or remotely by providing a FTP link for download. It is assumed that each sample is represented by a single
-sequencing run.
+The files can be available locally by providing the path (see sample file) or remotely by providing a FTP link for download. Files are stored in resources/pe (paired-end) or resources/se (single-end).
+It is assumed that each sample is represented by a single sequencing run.
 
 ### 2. Trimming
 Trimmomatic is used to trim Illumina adapters and low quality sequences. The trimmomatic options can be modified in the config file. This step is optional. 
