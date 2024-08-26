@@ -29,9 +29,9 @@ if config["estimate_cnv"]["enable"] == True:
 	    # determine index for id
             INDEX=$(zgrep -m 1 "" {input} | awk -v col={wildcards.id} '{{for(i=1;i<=NF;i++) if($i==col) print i}}')
 
-	    zcat {input} | cut -f1,"$INDEX" | tail -n +2 > temp.tmp
+	    zcat {input} | cut -f1,"$INDEX" | tail -n +2 > {wildcards.id}.tmp
 
-	    python scripts/assign_seq_score_mod.py temp.tmp {params.seqlib} {params.k} > {output}
+	    python scripts/assign_seq_score_mod.py {wildcards.id}.tmp {params.seqlib} {params.k} > {output}
 	    """
 
 else:
