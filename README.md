@@ -113,28 +113,28 @@ All outputs from the workflow are stored in the results folder. The main outputs
 **count_tbl_gc_qq.txt.gz**  
 K-mer count table normalized for both GC and coverage differences between samples 
 
-**cn_ests/**
+**cn_ests/**  
 K-mer based copy number estimates per sample  
 
-count_tbl_gc.txt.gz 
+count_tbl_gc.txt.gz   
 K-mer count table normalized for GC differences only. 
 
 count_tbl.txt.gz  
 K-mer counts per sample, unnormalized.  
 
-allgc.txt
+allgc.txt  
 Sum of K-mer counts per GC bin per sample  
 
-gc_ref.txt
+gc_ref.txt  
 The "reference" proportions of K-mer sum used for GC normalization. 
 
-voom_mean_var.txt
+voom_mean_var.txt  
 output from quantile-quantile normalization used to make mean variance plot 
 
-pe/ 
+pe/   
 processed sequencing reads for pe samples
 
-se/ 
+se/   
 processed sequencing reads for se samples
 
 counts/  
