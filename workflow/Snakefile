@@ -31,7 +31,7 @@ if config["estimate_cnv"]["enable"] == True:
 
             zcat {input} | cut -f1,"$INDEX" | tail -n +2 > {wildcards.id}.tmp
 
-            python scripts/assign_seq_score_mod.py {wildcards.id}.tmp {params.seqlib} {params.k} > {output}
+            python3 scripts/assign_seq_score_mod.py {wildcards.id}.tmp {params.seqlib} {params.k} > {output}
             rm {wildcards.id}.tmp
             """
 
@@ -52,7 +52,7 @@ if config["normalization"]["gc_correct"] == True:
             "results/counts/gc/{id}.txt"
         shell:
             """
-            python scripts/calc_gc.py {input} > {output}
+            python3 scripts/calc_gc.py {input} > {output}
             """
 
     rule gc_correct:
