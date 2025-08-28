@@ -227,12 +227,13 @@ if config["trimming"]["enable"] == True:
             temp("results/pe/trim/{id}_2_trimmed.fq.gz"),
             temp("results/pe/trim/{id}_2_trimmed_unpaired.fq.gz")
         params:
-            trim_params = config["trimming"]["trimmomatic_pe"]
+            cmdname = config["trimming"].get("trimmomatic_pe_command", "TrimmomaticPE"),
+            trim_params = config["trimming"]["trimmomatic_pe"],
         threads: 3
         shell:
             """
             echo "trimming with trimmomatic..."
-            trimmomatic PE -threads {threads} \
+            {params.cmdname} -threads {threads} \
             {input[0]} {input[1]} \
             {output[0]} {output[1]} \
             {output[2]} {output[3]} \
@@ -248,12 +249,13 @@ if config["trimming"]["enable"] == True:
         output:
             temp("results/se/trim/{id}_trimmed.fq.gz")
         params:
+            cmdname = config["trimming"].get("trimmomatic_se_command", "TrimmomaticSE"),
             trim_params = config["trimming"]["trimmomatic_se"]
         threads: 3
         shell:
             """
             echo "trimming with trimmomatic..."
-            trimmomatic SE -threads {threads} \
+            {params.cmdname} -threads {threads} \
             {input} {output} \
             {params.trim_params}
             """
