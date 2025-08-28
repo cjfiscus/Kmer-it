@@ -11,7 +11,7 @@ if config["estimate_cnv"]["enable"] == True:
     rule all:
         input:
             "results/count_tbl_gc_qq.txt.gz",
-	    expand("results/cn_ests/{id}.txt", id=all_ids)
+            expand("results/cn_ests/{id}.txt", id=all_ids)
 
     rule est_cn:
         """
@@ -26,26 +26,26 @@ if config["estimate_cnv"]["enable"] == True:
             k = config["k"]
         shell:
             """
-	    # determine index for id
+            # determine index for id
             INDEX=$(zgrep -m 1 "" {input} | awk -v col={wildcards.id} '{{for(i=1;i<=NF;i++) if($i==col) print i}}')
 
-	    zcat {input} | cut -f1,"$INDEX" | tail -n +2 > {wildcards.id}.tmp
+            zcat {input} | cut -f1,"$INDEX" | tail -n +2 > {wildcards.id}.tmp
 
-	    python scripts/assign_seq_score_mod.py {wildcards.id}.tmp {params.seqlib} {params.k} > {output}
-	    rm {wildcards.id}.tmp
-	    """
+            python scripts/assign_seq_score_mod.py {wildcards.id}.tmp {params.seqlib} {params.k} > {output}
+            rm {wildcards.id}.tmp
+            """
 
 else:
     rule all:
         input:
-	    "results/count_tbl_gc_qq.txt.gz"
+            "results/count_tbl_gc_qq.txt.gz"
 
 
 if config["normalization"]["gc_correct"] == True:
     rule calc_gc:
         """
-	calc GC bins per sample
-	"""
+        calc GC bins per sample
+        """
         input:
             "results/counts/{id}.txt.gz"
         output:
@@ -58,25 +58,25 @@ if config["normalization"]["gc_correct"] == True:
     rule gc_correct:
         input:
             "results/count_tbl.txt.gz",
-	    expand("results/counts/gc/{id}.txt", id=all_ids)
+            expand("results/counts/gc/{id}.txt", id=all_ids)
         output:
             "results/count_tbl_gc.txt.gz"
         shell:
             """
             cat results/counts/gc/*.txt > results/allgc.txt
-	    Rscript scripts/calc_ref_gc_bins.R results/allgc.txt results/gc_ref.txt
+            Rscript scripts/calc_ref_gc_bins.R results/allgc.txt results/gc_ref.txt
 
-	    Rscript scripts/gc_correct_tbl.R {input[0]} {output} results/allgc.txt results/gc_ref.txt
-	    """
+            Rscript scripts/gc_correct_tbl.R {input[0]} {output} results/allgc.txt results/gc_ref.txt
+            """
 else:
     rule skip_gc_correct:
         input:
-	    "results/count_tbl.txt.gz"
+            "results/count_tbl.txt.gz"
         output:
-	    "results/count_tbl_gc.txt.gz"
-            shell:
+            "results/count_tbl_gc.txt.gz"
+        shell:
                 """
-		ln -sr {input} {output}
+                ln -sr {input} {output}
                 """
 
 if config["normalization"]["cov_norm"] == True:
@@ -87,8 +87,8 @@ if config["normalization"]["cov_norm"] == True:
             "results/count_tbl_gc_qq.txt.gz"
         shell:
             """
-	    Rscript scripts/norm_qq.R {input} {output}
-	    """
+            Rscript scripts/norm_qq.R {input} {output}
+            """
 else:
     rule skip_cov_norm:
         input:
@@ -97,8 +97,8 @@ else:
             "results/count_tbl_gc_cov.txt.gz"
         shell:
             """
-	    ln -sr {input} {output}
-	    """
+            ln -sr {input} {output}
+            """
 
 rule join_kmers:
     input:
@@ -108,7 +108,7 @@ rule join_kmers:
     shell:
         """
         bash scripts/mk_count_tbl.sh {input} {output}
-	"""
+        """
 
 if config["map_to_organellar_genomes"]["use_custom_org_genome"] == True:
     rule index_custom_genome:
@@ -176,15 +176,15 @@ rule dl_fastq_pe:
     """
     params:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
-	fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"] if "fq2" in samples else "non-existing filename"
+        fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"] if "fq2" in samples else "non-existing filename"
     output:
         "resources/pe/raw/{id}_1.fq.gz",
-	"resources/pe/raw/{id}_2.fq.gz"
+        "resources/pe/raw/{id}_2.fq.gz"
     shell:
         """
-	wget --no-check-certificate -O {output[0]} {params.fq1}
-	wget --no-check-certificate -O {output[1]} {params.fq2}
-	"""
+        wget --no-check-certificate -O {output[0]} {params.fq1}
+        wget --no-check-certificate -O {output[1]} {params.fq2}
+        """
 
 rule rule ln_fastq_se:
     """
@@ -209,8 +209,8 @@ rule dl_fastq_se:
         "resources/se/raw/{id}.fq.gz"
     shell:
         """
-	wget --no-check-certificate -O {output} {params.fq}
-	"""
+        wget --no-check-certificate -O {output} {params.fq}
+        """
 
 if config["trimming"]["enable"] == True:
     ruleorder: trim_reads_pe > trim_reads_se
@@ -274,7 +274,7 @@ else:
             ln -sr {input[0]} {output[0]}
             ln -sr {input[1]} {output[1]}
             """
-	
+        
     rule skip_trimming_se:
         """
         skip trimming for se reads
@@ -344,7 +344,7 @@ else:
             ln -sr {input[0]} {output[0]}
             ln -sr {input[1]} {output[1]}
             """
-	
+        
     rule skip_correct_reads_se:
         """
         skip error correction for se reads
@@ -382,19 +382,19 @@ if config["map_to_organellar_genomes"]["enable"] == True:
         """
         input:
             "resources/org_genomes.fa",
-	    "results/se/corr/{id}_trimmed_ec.fq.gz"
+            "results/se/corr/{id}_trimmed_ec.fq.gz"
         output:
             temp("results/alignments/{id}.sam")
         threads: 4
         shell:
             """
-	    bwa mem -t {threads} -M {input} > {output}
-	    """
+            bwa mem -t {threads} -M {input} > {output}
+            """
     rule sam_2_sorted_bam_unmapped:
         """
         convert sam to sorted bam, then subset bam for unmapped reads
         """
-	input:
+        input:
             "results/alignments/{id}.sam"
         output:
             temp("results/unmapped/{id}.unmapped.bam")
