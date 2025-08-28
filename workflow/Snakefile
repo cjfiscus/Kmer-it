@@ -229,7 +229,7 @@ if config["trimming"]["enable"] == True:
         params:
             cmdname = config["trimming"].get("trimmomatic_pe_command", "TrimmomaticPE"),
             trim_params = config["trimming"]["trimmomatic_pe"],
-        threads: 3
+        threads: 4
         shell:
             """
             echo "trimming with trimmomatic..."
@@ -251,7 +251,7 @@ if config["trimming"]["enable"] == True:
         params:
             cmdname = config["trimming"].get("trimmomatic_se_command", "TrimmomaticSE"),
             trim_params = config["trimming"]["trimmomatic_se"]
-        threads: 3
+        threads: 4
         shell:
             """
             echo "trimming with trimmomatic..."
@@ -302,7 +302,7 @@ if config["error_correct"]["enable"] == True:
         output:
             "results/pe/corr/{id}_1_trimmed_ec.fq.gz",
             "results/pe/corr/{id}_2_trimmed_ec.fq.gz",
-        threads: 3
+        threads: 4
         shell:
             """
             spades.py -t {threads} -m 64 --only-error-correction \
@@ -321,7 +321,7 @@ if config["error_correct"]["enable"] == True:
             "results/se/trim/{id}_trimmed.fq.gz"
         output:
             "results/se/corr/{id}_trimmed_ec.fq.gz"
-        threads: 3
+        threads: 4
         shell:
             """
             spades.py -t {threads} -m 64 --only-error-correction \
