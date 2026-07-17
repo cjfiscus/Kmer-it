@@ -186,7 +186,7 @@ rule dl_fastq_pe:
         wget --no-check-certificate -O {output[1]} {params.fq2}
         """
 
-rule rule ln_fastq_se:
+rule ln_fastq_se:
     """
     link se reads file
     """
@@ -227,7 +227,7 @@ if config["trimming"]["enable"] == True:
             temp("results/pe/trim/{id}_2_trimmed.fq.gz"),
             temp("results/pe/trim/{id}_2_trimmed_unpaired.fq.gz")
         params:
-            cmdname = config["trimming"].get("trimmomatic_pe_command", "TrimmomaticPE"),
+            cmdname = config["trimming"].get("trimmomatic_pe_command", "trimmomatic PE"),
             trim_params = config["trimming"]["trimmomatic_pe"],
         threads: 4
         shell:
@@ -249,7 +249,7 @@ if config["trimming"]["enable"] == True:
         output:
             temp("results/se/trim/{id}_trimmed.fq.gz")
         params:
-            cmdname = config["trimming"].get("trimmomatic_se_command", "TrimmomaticSE"),
+            cmdname = config["trimming"].get("trimmomatic_se_command", "trimmomatic SE"),
             trim_params = config["trimming"]["trimmomatic_se"]
         threads: 4
         shell:
