@@ -14,7 +14,7 @@ counts<-fread(args[1])
 
 # take a peek
 dim(counts)
-counts[1:5,1:5]
+counts[1:min(5,nrow(counts)), 1:min(5,ncol(counts))]
 
 # save kmers
 kmers<-counts[,1]

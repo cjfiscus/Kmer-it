@@ -5,7 +5,7 @@ min_version("5.3.0")
 
 # set up config
 configfile: "config/config.yaml"
-samples = pd.read_table("config/samples.tsv").set_index("id", drop=False)
+samples = pd.read_table(config["sample_file"]).set_index("id", drop=False)
 all_ids=list(samples["id"])
 
 # a sample is paired-end only if it has a non-empty fq2 value; everything
@@ -20,6 +20,12 @@ se_ids = [i for i in all_ids if i not in pe_ids]
 def id_pattern(ids):
     return "|".join(re.escape(str(i)) for i in ids) if ids else "(?!)"
 
+# extract the adapter fasta path from a trimmomatic ILLUMINACLIP clause, so it
+# can be declared as a rule dependency instead of being invisible to snakemake
+def illuminaclip_path(trim_params):
+    m = re.search(r"ILLUMINACLIP:([^:]+):", trim_params)
+    return m.group(1) if m else []
+
 if config["estimate_cnv"]["enable"] == True:
     rule all:
         input:
@@ -31,7 +37,9 @@ if config["estimate_cnv"]["enable"] == True:
         kmer based copy number estimates
         """
         input:
-            "results/count_tbl_gc_qq.txt.gz"
+            tbl="results/count_tbl_gc_qq.txt.gz",
+            script="scripts/assign_seq_score_mod.py",
+            seqlib=config["estimate_cnv"]["seq_lib"]
         output:
             "results/cn_ests/{id}.txt"
         params:
@@ -40,11 +48,11 @@ if config["estimate_cnv"]["enable"] == True:
         shell:
             """
             # determine index for id
-            INDEX=$(zgrep -m 1 "" {input} | awk -v col={wildcards.id} '{{for(i=1;i<=NF;i++) if($i==col) print i}}')
+            INDEX=$(zgrep -m 1 "" {input.tbl} | awk -v col={wildcards.id} '{{for(i=1;i<=NF;i++) if($i==col) print i}}')
 
-            zcat {input} | cut -f1,"$INDEX" | tail -n +2 > {wildcards.id}.tmp
+            zcat {input.tbl} | cut -f1,"$INDEX" | tail -n +2 > {wildcards.id}.tmp
 
-            python3 scripts/assign_seq_score_mod.py {wildcards.id}.tmp {params.seqlib} {params.k} > {output}
+            python3 {input.script} {wildcards.id}.tmp {params.seqlib} {params.k} > {output}
             rm {wildcards.id}.tmp
             """
 
@@ -60,26 +68,29 @@ if config["normalization"]["gc_correct"] == True:
         calc GC bins per sample
         """
         input:
-            "results/counts/{id}.txt.gz"
+            counts="results/counts/{id}.txt.gz",
+            script="scripts/calc_gc.py"
         output:
             "results/counts/gc/{id}.txt"
         shell:
             """
-            python3 scripts/calc_gc.py {input} > {output}
+            python3 {input.script} {input.counts} > {output}
             """
 
     rule gc_correct:
         input:
             "results/count_tbl.txt.gz",
-            expand("results/counts/gc/{id}.txt", id=all_ids)
+            expand("results/counts/gc/{id}.txt", id=all_ids),
+            calc_ref_script="scripts/calc_ref_gc_bins.R",
+            correct_script="scripts/gc_correct_tbl.R"
         output:
             "results/count_tbl_gc.txt.gz"
         shell:
             """
             cat results/counts/gc/*.txt > results/allgc.txt
-            Rscript scripts/calc_ref_gc_bins.R results/allgc.txt results/gc_ref.txt
+            Rscript {input.calc_ref_script} results/allgc.txt results/gc_ref.txt
 
-            Rscript scripts/gc_correct_tbl.R {input[0]} {output} results/allgc.txt results/gc_ref.txt
+            Rscript {input.correct_script} {input[0]} {output} results/allgc.txt results/gc_ref.txt
             """
 else:
     rule skip_gc_correct:
@@ -95,12 +106,13 @@ else:
 if config["normalization"]["cov_norm"] == True:
     rule cov_norm:
         input:
-            "results/count_tbl_gc.txt.gz"
+            tbl="results/count_tbl_gc.txt.gz",
+            script="scripts/norm_qq.R"
         output:
             "results/count_tbl_gc_qq.txt.gz"
         shell:
             """
-            Rscript scripts/norm_qq.R {input} {output}
+            Rscript {input.script} {input.tbl} {output}
             """
 else:
     rule skip_cov_norm:
@@ -115,12 +127,13 @@ else:
 
 rule join_kmers:
     input:
-        expand("results/counts/{id}.txt.gz", id=all_ids)
+        counts=expand("results/counts/{id}.txt.gz", id=all_ids),
+        script="scripts/mk_count_tbl.sh"
     output:
         "results/count_tbl.txt.gz"
     shell:
         """
-        bash scripts/mk_count_tbl.sh {input} {output}
+        bash {input.script} {input.counts} {output}
         """
 
 if config["map_to_organellar_genomes"]["use_custom_org_genome"] == True:
@@ -128,11 +141,13 @@ if config["map_to_organellar_genomes"]["use_custom_org_genome"] == True:
         """
         copy custom genome to resources and index
         """
+        input:
+            config["map_to_organellar_genomes"]["custom_org_genome_path"]
         params:
             path=config["map_to_organellar_genomes"]["custom_org_genome_path"]
         output:
             "resources/org_genomes.fa",
-            expand("resources/org_genomes.fa.{ext}", ext=["ann", "bwt", "pac", "sa"])
+            expand("resources/org_genomes.fa.{ext}", ext=["amb", "ann", "bwt", "pac", "sa"])
         shell:
             """
             # copy custom genome to resources
@@ -149,7 +164,7 @@ else:
         """
         output:
             "resources/org_genomes.fa", 
-            expand("resources/org_genomes.fa.{ext}", ext=["ann", "bwt", "pac", "sa"])
+            expand("resources/org_genomes.fa.{ext}", ext=["amb", "ann", "bwt", "pac", "sa"])
         shell:
             """
             # dl refseq from ncbi
@@ -241,7 +256,8 @@ if config["trimming"]["enable"] == True:
         """
         input:
             "resources/pe/raw/{id}_1.fq.gz",
-            "resources/pe/raw/{id}_2.fq.gz"
+            "resources/pe/raw/{id}_2.fq.gz",
+            adapters=illuminaclip_path(config["trimming"]["trimmomatic_pe"])
         output:
             temp("results/pe/trim/{id}_1_trimmed.fq.gz"),
             temp("results/pe/trim/{id}_1_trimmed_unpaired.fq.gz"),
@@ -266,7 +282,8 @@ if config["trimming"]["enable"] == True:
         trim adapters and low quality sequence with trimmomatic for se runs
         """
         input:
-            "resources/se/raw/{id}.fq.gz"
+            reads="resources/se/raw/{id}.fq.gz",
+            adapters=illuminaclip_path(config["trimming"]["trimmomatic_se"])
         output:
             temp("results/se/trim/{id}_trimmed.fq.gz")
         params:
@@ -277,7 +294,7 @@ if config["trimming"]["enable"] == True:
             """
             echo "trimming with trimmomatic..."
             {params.cmdname} -threads {threads} \
-            {input} {output} \
+            {input.reads} {output} \
             {params.trim_params}
             """
 else:
@@ -330,8 +347,8 @@ if config["error_correct"]["enable"] == True:
             -1 {input[0]} \
             -2 {input[1]} -o ./results/pe/{wildcards.id}
             
-            mv results/pe/{wildcards.id}/corrected/{wildcards.id}_1_trimmed.fq.00.0_0.cor.fastq.gz {output[0]}
-            mv results/pe/{wildcards.id}/corrected/{wildcards.id}_2_trimmed.fq.00.0_0.cor.fastq.gz {output[1]}
+            mv results/pe/{wildcards.id}/corrected/{wildcards.id}_1_trimmed.fq00.0_0.cor.fastq.gz {output[0]}
+            mv results/pe/{wildcards.id}/corrected/{wildcards.id}_2_trimmed.fq00.0_0.cor.fastq.gz {output[1]}
             """
 
     rule correct_reads_se:
@@ -348,7 +365,7 @@ if config["error_correct"]["enable"] == True:
             spades.py -t {threads} -m 64 --only-error-correction \
             -s {input} -o ./results/se/{wildcards.id}
 
-            mv results/se/{wildcards.id}/corrected/{wildcards.id}_trimmed.fq.00.0_0.cor.fastq.gz {output} 
+            mv results/se/{wildcards.id}/corrected/{wildcards.id}_trimmed.fq00.0_0.cor.fastq.gz {output} 
             """
 else:
     ruleorder: skip_correct_reads_pe > skip_correct_reads_se
@@ -390,13 +407,14 @@ if config["map_to_organellar_genomes"]["enable"] == True:
         input:
             "resources/org_genomes.fa",
             "results/pe/corr/{id}_1_trimmed_ec.fq.gz",
-            "results/pe/corr/{id}_2_trimmed_ec.fq.gz"
+            "results/pe/corr/{id}_2_trimmed_ec.fq.gz",
+            idx=expand("resources/org_genomes.fa.{ext}", ext=["amb", "ann", "bwt", "pac", "sa"])
         output:
             temp("results/alignments/{id}.sam")
         threads: 4
         shell:
             """
-            bwa mem -t {threads} -M {input} > {output}
+            bwa mem -t {threads} -M {input[0]} {input[1]} {input[2]} > {output}
             """
 
     rule map_to_organelle_genomes_se:
@@ -405,13 +423,14 @@ if config["map_to_organellar_genomes"]["enable"] == True:
         """
         input:
             "resources/org_genomes.fa",
-            "results/se/corr/{id}_trimmed_ec.fq.gz"
+            "results/se/corr/{id}_trimmed_ec.fq.gz",
+            idx=expand("resources/org_genomes.fa.{ext}", ext=["amb", "ann", "bwt", "pac", "sa"])
         output:
             temp("results/alignments/{id}.sam")
         threads: 4
         shell:
             """
-            bwa mem -t {threads} -M {input} > {output}
+            bwa mem -t {threads} -M {input[0]} {input[1]} > {output}
             """
     rule sam_2_sorted_bam_unmapped:
         """
