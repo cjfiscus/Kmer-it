@@ -62,7 +62,7 @@ Here's a sample file showing an example of both paired and single end reads avai
 id	sample_name	fq1	fq2
 b	test_paired	resources/SRR1945436_1.fastq.gz	resources/SRR1945436_2.fastq.gz
 c	test_single	resources/SRR1945434.fastq.gz
-d	test_paired2	https://cluster.hpcc.ucr.edu/\~cfisc004/A_thal_repeats/SRR1945437_1.fastq.gz	https://cluster.hpcc.ucr.edu/\~cfisc004/A_thal_repeats/SRR1945437_2.fastq.gz
+d	test_paired2	https://cluster.hpcc.ucr.edu/~cfisc004/A_thal_repeats/SRR1945437_1.fastq.gz	https://cluster.hpcc.ucr.edu/~cfisc004/A_thal_repeats/SRR1945437_2.fastq.gz
 e	test_single2	https://cluster.hpcc.ucr.edu/~cfisc004/A_thal_repeats/SRR1945436.fastq.gz
 ```
 
@@ -77,6 +77,8 @@ sample_file: "config/samples.tsv"
 ## trimming options
 trimming:
     enable: true # true | false
+    trimmomatic_pe_command: "trimmomatic PE"   # Change to TrimmomaticPE if installed from Debian
+    trimmomatic_se_command: "trimmomatic SE"   # Change to TrimmomaticSE if installed from Debian
     trimmomatic_pe: "ILLUMINACLIP:resources/PE_all.fa:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:20 MINLEN:36"
     trimmomatic_se: "ILLUMINACLIP:resources/SE_all.fa:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:20 MINLEN:36"
 
@@ -142,3 +144,7 @@ raw K-mer counts per sample
 
 ## Citation
 If you use this software, please cite:
+
+Fiscus Christopher J, Koenig Daniel (2025) The genetic control of rapid genome content divergence in *Arabidopsis thaliana* eLife 14:RP108238
+
+https://doi.org/10.7554/eLife.108238.1
