@@ -6,6 +6,8 @@ sample_file: "config/samples.tsv"
 ## trimming options
 trimming:
     enable: true # true | false
+    trimmomatic_pe_command: "trimmomatic PE"   # Change to TrimmomaticPE if installed from Debian
+    trimmomatic_se_command: "trimmomatic SE"   # Change to TrimmomaticSE if installed from Debian
     trimmomatic_pe: "ILLUMINACLIP:resources/PE_all.fa:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:20 MINLEN:36"
     trimmomatic_se: "ILLUMINACLIP:resources/SE_all.fa:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:20 MINLEN:36"
 
