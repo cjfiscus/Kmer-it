@@ -1,3 +1,4 @@
+import re
 import pandas as pd
 from snakemake.utils import min_version
 min_version("5.3.0")
@@ -6,6 +7,18 @@ min_version("5.3.0")
 configfile: "config/config.yaml"
 samples = pd.read_table("config/samples.tsv").set_index("id", drop=False)
 all_ids=list(samples["id"])
+
+# a sample is paired-end only if it has a non-empty fq2 value; everything
+# else (including samples.tsv files with no fq2 column at all) is single-end
+if "fq2" in samples:
+    pe_ids = [i for i in all_ids if pd.notna(samples.loc[i, "fq2"])]
+else:
+    pe_ids = []
+se_ids = [i for i in all_ids if i not in pe_ids]
+
+# regex that matches only the given ids, or never matches if the list is empty
+def id_pattern(ids):
+    return "|".join(re.escape(str(i)) for i in ids) if ids else "(?!)"
 
 if config["estimate_cnv"]["enable"] == True:
     rule all:
@@ -94,7 +107,7 @@ else:
         input:
             "results/count_tbl_gc.txt.gz"
         output:
-            "results/count_tbl_gc_cov.txt.gz"
+            "results/count_tbl_gc_qq.txt.gz"
         shell:
             """
             ln -sr {input} {output}
@@ -159,9 +172,11 @@ rule ln_fastq_pe:
     """
     link pe reads files
     """
+    wildcard_constraints:
+        id=id_pattern(pe_ids)
     input:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
-        fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"] if "fq2" in samples else "non-existing-filename"
+        fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"] if "fq2" in samples and pd.notna(samples.loc[wildcards.id, "fq2"]) else "non-existing-filename"
     output:
         "resources/pe/raw/{id}_1.fq.gz",
         "resources/pe/raw/{id}_2.fq.gz"
@@ -174,9 +189,11 @@ rule dl_fastq_pe:
     """
     download pe reads files
     """
+    wildcard_constraints:
+        id=id_pattern(pe_ids)
     params:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"],
-        fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"] if "fq2" in samples else "non-existing filename"
+        fq2=lambda wildcards: samples.loc[wildcards.id, "fq2"] if "fq2" in samples and pd.notna(samples.loc[wildcards.id, "fq2"]) else "non-existing-filename"
     output:
         "resources/pe/raw/{id}_1.fq.gz",
         "resources/pe/raw/{id}_2.fq.gz"
@@ -190,6 +207,8 @@ rule ln_fastq_se:
     """
     link se reads file
     """
+    wildcard_constraints:
+        id=id_pattern(se_ids)
     input:
         fq1=lambda wildcards: samples.loc[wildcards.id, "fq1"]
     output:
@@ -203,6 +222,8 @@ rule dl_fastq_se:
     """
     download se reads file
     """
+    wildcard_constraints:
+        id=id_pattern(se_ids)
     params:
         fq=lambda wildcards: samples.loc[wildcards.id, "fq1"]
     output:
