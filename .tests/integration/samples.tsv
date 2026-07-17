@@ -1,0 +1,3 @@
+id	sample_name	fq1	fq2
+b	test_paired	.tests/integration/data/b_1.fastq.gz	.tests/integration/data/b_2.fastq.gz
+c	test_single	.tests/integration/data/c.fastq.gz

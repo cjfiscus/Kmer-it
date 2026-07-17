@@ -142,6 +142,13 @@ processed sequencing reads for se samples
 counts/  
 raw K-mer counts per sample
 
+## Testing
+Unit tests for each workflow rule live in `.tests/unit/` and were generated with `snakemake --generate-unit-tests` from a real run of the pipeline against the small local paired- and single-end fixtures in `.tests/integration/` (subsampled from the same reads used in the sample file example above). Run them with:
+
+`pytest .tests/unit`
+
+`pytest` is included in `workflow/envs/environment.yaml`. The fixtures only cover samples provided as local files (`fq1`/`fq2` pointing to files on disk); the `dl_fastq_pe`/`dl_fastq_se` rules that download remote FTP/HTTP-hosted reads are not covered by these tests, since that requires network access to external servers.
+
 ## Citation
 If you use this software, please cite:
 
